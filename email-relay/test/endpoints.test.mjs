@@ -244,10 +244,30 @@ test('notify sends only to the address in the signed token', async () => {
 	assert.equal(resendBody.to, 'verified@example.com');
 	assert.equal(resendBody.subject, 'Process Watcher: build.exe finished');
 	assert.doesNotMatch(resendRequest.init.body, /attacker@example\.com/);
-	assert.match(resendBody.text, /^Process: build\.exe\nCommand line: build\.exe --release\nPID: 4242/);
-	assert.ok(resendBody.html.indexOf('Command line') < resendBody.html.indexOf('PID'));
+	assert.match(resendBody.text, /^PROCESS WATCHER\n\nbuild\.exe finished\nPID: 4242\nLocation: Local Windows/);
+	assert.match(resendBody.text, /\nCommand line:\nbuild\.exe --release\n\nStatus: Ended/);
+	for (const field of ['Process started:', 'Watch started:', 'Ended:', 'Runtime while watched:']) {
+		assert.match(resendBody.text, new RegExp(field));
+	}
+	assert.match(resendBody.html, /src="cid:process-watcher-clock"/);
+	assert.match(resendBody.html, /border-left:5px solid #66C0F4/);
+	assert.match(resendBody.html, /background:#F2F5F7/);
+	assert.match(resendBody.html, /background:#FFFFFF/);
+	assert.ok(resendBody.html.indexOf('build.exe finished') < resendBody.html.indexOf('PID 4242'));
+	assert.ok(resendBody.html.indexOf('PID 4242') < resendBody.html.indexOf('Command line'));
+	for (const value of ['Local Windows', 'build.exe --release', 'Status', 'Process started', 'Watch started', 'Ended', 'Runtime while watched']) {
+		assert.match(resendBody.html, new RegExp(value));
+	}
+	assert.deepEqual(resendBody.attachments.map(attachment => ({
+		filename: attachment.filename,
+		content_id: attachment.content_id,
+	})), [{
+		filename: 'process-watcher-clock.png',
+		content_id: 'process-watcher-clock',
+	}]);
+	assert.equal(Buffer.from(resendBody.attachments[0].content, 'base64').subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
 
-	const unsubscribeUrl = resendBody.text.match(/Stop these emails: (https:\/\/\S+)/)?.[1];
+	const unsubscribeUrl = resendBody.text.match(/Stop receiving Process Watcher emails: (https:\/\/\S+)/)?.[1];
 	assert.ok(unsubscribeUrl);
 	const confirmation = await worker.fetch(new Request(unsubscribeUrl), env(database));
 	assert.equal(confirmation.status, 200);

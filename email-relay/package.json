@@ -3,15 +3,21 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "generate:email-assets": "node scripts/generate-email-assets.mjs",
+    "precheck": "npm run generate:email-assets",
     "check": "tsc --noEmit",
+    "pretest": "npm run generate:email-assets",
     "test": "node --experimental-strip-types --test test/*.test.mjs",
+    "predev": "npm run generate:email-assets",
     "dev": "wrangler dev --config wrangler.production.jsonc",
+    "predeploy": "npm run generate:email-assets",
     "deploy": "wrangler deploy --config wrangler.production.jsonc",
     "db:migrate:local": "wrangler d1 migrations apply process-watcher-email --local --config wrangler.production.jsonc",
     "db:migrate:remote": "wrangler d1 migrations apply process-watcher-email --remote --config wrangler.production.jsonc"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20260925.2",
+    "sharp": "^0.35.4",
     "typescript": "^6.0.3",
     "wrangler": "4.141.0"
   }

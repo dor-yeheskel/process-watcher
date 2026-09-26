@@ -1,3 +1,5 @@
+import { processWatcherIconPng } from './generated/processWatcherIcon.js';
+
 interface Env {
 	DB: D1Database;
 	RESEND_API_KEY: string;
@@ -20,6 +22,20 @@ interface TokenPayload {
 	expiresAt: number;
 	version: 1;
 	purpose?: 'unsubscribe';
+}
+
+interface EmailAttachment {
+	content: string;
+	filename: string;
+	content_id: string;
+}
+
+interface ResendMessage {
+	to: string;
+	subject: string;
+	text: string;
+	html: string;
+	attachments?: EmailAttachment[];
 }
 
 const jsonHeaders = { 'content-type': 'application/json; charset=utf-8' };
@@ -161,17 +177,6 @@ async function sendNotification(request: Request, env: Env): Promise<Response> {
 		return json({ error: 'Daily email notification limit reached.' }, 429);
 	}
 	const runtime = formatDuration(Date.parse(message.endedAt) - Date.parse(message.watchStartedAt));
-	const rows = [
-		['Process', message.processName],
-		['Command line', message.commandLine],
-		['PID', String(message.pid)],
-		['Location', message.location],
-		['Status', 'Ended'],
-		['Process started', formatDate(message.processStartedAt)],
-		['Watch started', formatDate(message.watchStartedAt)],
-		['Ended', formatDate(message.endedAt)],
-		['Runtime while watched', runtime],
-	] as const;
 	const unsubscribeToken = await createToken({
 		email: payload.email,
 		expiresAt: payload.expiresAt,
@@ -179,15 +184,108 @@ async function sendNotification(request: Request, env: Env): Promise<Response> {
 		purpose: 'unsubscribe',
 	}, env.TOKEN_SIGNING_SECRET);
 	const unsubscribeUrl = `${new URL(request.url).origin}/v1/email/unsubscribe?token=${encodeURIComponent(unsubscribeToken)}`;
-	const text = `${rows.map(([label, value]) => `${label}: ${value}`).join('\n')}\n\nStop these emails: ${unsubscribeUrl}`;
-	const html = `<div style="font-family:Segoe UI,Arial,sans-serif;color:#20252b"><h2 style="margin-bottom:16px">${escapeHtml(message.processName)} finished</h2><table>${rows.map(([label, value]) => `<tr><td style="padding:4px 16px 4px 0;color:#66717c;vertical-align:top">${escapeHtml(label)}</td><td style="padding:4px 0">${escapeHtml(value)}</td></tr>`).join('')}</table><p style="margin-top:24px;font-size:12px;color:#66717c"><a href="${escapeHtml(unsubscribeUrl)}" style="color:#52606d">Stop receiving Process Watcher emails</a></p></div>`;
+	const presentation = completionEmailPresentation(message, runtime, unsubscribeUrl);
 	await sendResendEmail(env, {
 		to: payload.email,
 		subject: `Process Watcher: ${message.processName} finished`,
-		text,
-		html,
+		...presentation,
 	});
 	return json({ ok: true });
+}
+
+export function completionEmailPresentation(message: EmailMessage, runtime: string, unsubscribeUrl: string) {
+	const details = [
+		['Status', 'Ended'],
+		['Process started', formatDate(message.processStartedAt)],
+		['Watch started', formatDate(message.watchStartedAt)],
+		['Ended', formatDate(message.endedAt)],
+		['Runtime while watched', runtime],
+	] as const;
+	const text = [
+		'PROCESS WATCHER',
+		'',
+		`${message.processName} finished`,
+		`PID: ${message.pid}`,
+		`Location: ${message.location}`,
+		'',
+		'Command line:',
+		message.commandLine,
+		'',
+		...details.map(([label, value]) => `${label}: ${value}`),
+		'',
+		`Stop receiving Process Watcher emails: ${unsubscribeUrl}`,
+	].join('\n');
+	const detailRows = details.map(([label, value]) => `
+		<tr>
+			<td width="42%" style="padding:9px 12px 9px 0;border-top:1px solid #E4E9ED;color:#66717C;font-family:'Segoe UI',Arial,sans-serif;font-size:13px;line-height:18px;vertical-align:top">${escapeHtml(label)}</td>
+			<td style="padding:9px 0;border-top:1px solid #E4E9ED;color:#20252B;font-family:'Segoe UI',Arial,sans-serif;font-size:13px;line-height:18px;vertical-align:top">${escapeHtml(value)}</td>
+		</tr>`).join('');
+	const html = `<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<meta name="color-scheme" content="light">
+	<meta name="supported-color-schemes" content="light">
+	<title>${escapeHtml(message.processName)} finished</title>
+	<style>
+		@media only screen and (max-width:600px) {
+			.email-shell { padding:16px 10px !important; }
+			.notification { padding:22px 18px !important; }
+			.process-title { font-size:22px !important; line-height:28px !important; }
+		}
+	</style>
+</head>
+<body style="margin:0;padding:0;background:#F2F5F7;color:#20252B">
+	<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${escapeHtml(message.processName)} finished - PID ${message.pid} - ${escapeHtml(message.location)}</div>
+	<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;background:#F2F5F7">
+		<tr>
+			<td class="email-shell" align="center" style="padding:28px 14px">
+				<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:560px">
+					<tr>
+						<td class="notification" style="padding:26px 28px;background:#FFFFFF;border:1px solid #D9E0E5;border-left:5px solid #66C0F4;border-radius:8px;box-shadow:0 5px 18px rgba(32,37,43,0.10)">
+							<table role="presentation" cellspacing="0" cellpadding="0" border="0">
+								<tr>
+									<td width="40" style="width:40px;padding:0 10px 0 0;vertical-align:middle">
+										<img src="cid:process-watcher-clock" width="32" height="32" alt="" style="display:block;width:32px;height:32px;border:0">
+									</td>
+									<td style="color:#2B8FBE;font-family:'Segoe UI',Arial,sans-serif;font-size:11px;font-weight:700;line-height:16px;letter-spacing:0.8px;vertical-align:middle">PROCESS WATCHER</td>
+								</tr>
+							</table>
+							<h1 class="process-title" style="margin:18px 0 5px;color:#20252B;font-family:'Segoe UI',Arial,sans-serif;font-size:25px;font-weight:600;line-height:32px;letter-spacing:0">${escapeHtml(message.processName)} finished</h1>
+							<p style="margin:0;color:#66717C;font-family:'Segoe UI',Arial,sans-serif;font-size:13px;line-height:20px">PID ${message.pid}&nbsp;&nbsp;&bull;&nbsp;&nbsp;${escapeHtml(message.location)}</p>
+							<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;margin-top:22px">
+								<tr>
+									<td style="padding:0 0 7px;color:#66717C;font-family:'Segoe UI',Arial,sans-serif;font-size:11px;font-weight:700;line-height:16px;text-transform:uppercase">Command line</td>
+								</tr>
+								<tr>
+									<td style="padding:11px 12px;background:#F4F7F9;border:1px solid #E0E6EA;border-radius:4px;color:#303840;font-family:Consolas,'Courier New',monospace;font-size:12px;line-height:18px;word-break:break-all;overflow-wrap:anywhere">${escapeHtml(message.commandLine)}</td>
+								</tr>
+							</table>
+							<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;margin-top:18px">${detailRows}
+							</table>
+						</td>
+					</tr>
+					<tr>
+						<td align="center" style="padding:14px 12px 0;color:#7B8791;font-family:'Segoe UI',Arial,sans-serif;font-size:11px;line-height:16px">
+							<a href="${escapeHtml(unsubscribeUrl)}" style="color:#66717C;text-decoration:underline">Stop receiving Process Watcher emails</a>
+						</td>
+					</tr>
+				</table>
+			</td>
+		</tr>
+	</table>
+</body>
+</html>`;
+	return {
+		text,
+		html,
+		attachments: [{
+			content: processWatcherIconPng,
+			filename: 'process-watcher-clock.png',
+			content_id: 'process-watcher-clock',
+		}],
+	};
 }
 
 async function unsubscribePage(url: URL, env: Env): Promise<Response> {
@@ -248,7 +346,7 @@ async function cleanupExpired(database: D1Database): Promise<void> {
 	await database.prepare('DELETE FROM email_verifications WHERE expires_at < ?').bind(now).run();
 }
 
-async function sendResendEmail(env: Env, message: { to: string; subject: string; text: string; html: string }): Promise<void> {
+async function sendResendEmail(env: Env, message: ResendMessage): Promise<void> {
 	const response = await fetch('https://api.resend.com/emails', {
 		method: 'POST',
 		headers: {
