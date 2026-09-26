@@ -1,6 +1,6 @@
 param(
-    [string]$Headline = 'Hello world',
-    [string]$Detail = 'Windows notifications are ready',
+    [string]$Headline = 'Process finished',
+    [string]$Detail = 'Monitoring complete',
     [string]$CodePath = '',
     [string]$TargetWindowMarker = '',
     [string]$TargetSwitch = '',

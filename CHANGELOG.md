@@ -5,6 +5,7 @@
 - Add a compact, responsive completion-email design using the Process Watcher clock mark, with a matching plain-text fallback.
 - Focus the originating VS Code workspace when a completion popup is clicked, including when local and Remote SSH windows share one Electron process.
 - Add Marketplace artwork, workflow demonstrations, platform support notes, and public installation documentation.
+- Remove obsolete debug and duplicate focus commands from the Command Palette.
 - Remove the redundant always-ended status row from completion emails.
 - Move the production relay to `relay.processwatcher.dev` and keep production Cloudflare identifiers out of source control.
 - Store only HMAC-derived recipient and IP identifiers in D1, atomically limit verification attempts, and clean expired records.
@@ -51,5 +52,5 @@
 ## 0.0.2
 
 - Reset to a Windows-only notification proof of concept.
-- Add `Process Watcher: Hello World Windows Notification`.
+- Add an initial native Windows notification prototype.
 - Force local UI-host execution so the command also runs locally from Remote SSH windows.

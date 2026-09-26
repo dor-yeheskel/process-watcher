@@ -48,16 +48,6 @@
     },
     "commands": [
       {
-        "command": "processWatcher.view.focus",
-        "title": "Focus on Processes View",
-        "category": "Process Watcher"
-      },
-      {
-        "command": "processWatcher.helloWorldWindowsNotification",
-        "title": "Hello World Windows Notification",
-        "category": "Process Watcher"
-      },
-      {
         "command": "processWatcher.addProcess",
         "title": "Add Process",
         "category": "Process Watcher",
@@ -95,14 +85,6 @@
         }
       ],
       "commandPalette": [
-        {
-          "command": "processWatcher.view.focus",
-          "when": "false"
-        },
-        {
-          "command": "processWatcher.helloWorldWindowsNotification",
-          "when": "false"
-        },
         {
           "command": "processWatcher.removeProcess",
           "when": "false"

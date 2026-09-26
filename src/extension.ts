@@ -56,21 +56,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		treeView,
 		vscode.commands.registerCommand('processWatcher.configureEmail', () =>
 			emailNotifications.configure()),
-		vscode.commands.registerCommand('processWatcher.helloWorldWindowsNotification', async () => {
-			if (process.platform !== 'win32') {
-				log(`Popup command ran on ${process.platform}; local Windows is required.`);
-				return;
-			}
-			try {
-				await launchWindowsPopup(
-					context.asAbsolutePath(path.join('resources', 'windows-hello.ps1')),
-					'Hello world',
-					'Windows notifications are ready',
-				);
-			} catch (error) {
-				log(`Hello popup failed: ${errorMessage(error)}`);
-			}
-		}),
 		vscode.commands.registerCommand('processWatcher.addProcess', async () => {
 			setTreeMessage('Loading processes...');
 			try {

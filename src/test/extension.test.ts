@@ -22,8 +22,6 @@ suite('Process Watcher MVP', () => {
 		assert.deepStrictEqual(
 			manifest.contributes.commands.map(command => command.command),
 			[
-				'processWatcher.view.focus',
-				'processWatcher.helloWorldWindowsNotification',
 				'processWatcher.addProcess',
 				'processWatcher.configureEmail',
 				'processWatcher.removeProcess',
@@ -33,8 +31,6 @@ suite('Process Watcher MVP', () => {
 		assert.deepStrictEqual(
 			manifest.contributes.menus.commandPalette.map(item => item.command),
 			[
-				'processWatcher.view.focus',
-				'processWatcher.helloWorldWindowsNotification',
 				'processWatcher.removeProcess',
 				'processWatcher.clearEndedProcesses',
 			],
