@@ -5,9 +5,8 @@
 
 A tiny tool whose purpose is simple: let you know when any process has finished, in 2 clicks.
 
-`**PLACEHOLDER_FOR_GIF**`
 <div align="center"  style="margin-bottom: 2rem">
-  <img src="media/docs/demo.gif" width="660"/>
+  <img src="media/demo.gif" width="80%" />
   <br/>
   <sub><i>▶ Example: get a notification for a finished process</i></sub>
 </div>
@@ -35,22 +34,22 @@ choose which process to follow.
 
 Doing this for **any process** you choose on your machine - this is the pain that **Process Watcher** solves.
 
-
 ## Usage
 
-You choose a process, any process - yours, someone else's, a Python script, a Copilot process, anything.
+You choose a process, any process - yours, someone else's, a Python script, a Copilot process, anything.  
+You can do it by either pressing `Ctrl + Shift + P` → `Process Watcher: Add Process`,  
+or via the extension's GUI.
 
-`**PLACEHOLDER_FOR_GIF**`
+The process will be monitored by a simple tracker in the background that will do the "manual checking" for you.  
+You will be notified immediately once it completes by a small window notification that will remain there until you close it.
+
 <div align="center"  style="margin-bottom: 2rem">
-  <img src="media/docs/choose_process.gif" width="660"/>
+  <img src="media/choose_process.gif" width="660"/>
   <br/>
   <sub><i>▶ Example: choosing a process to watch</i></sub>
 </div>
 
-The process will be monitored by a simple tracker in the background that
-will do the "manual checking" for you. You will be notified immediately once it completes by a small window notification that will remain there until you close it.
-
-If you provide an email address, you will also receive an email notification once the process completes.
+If you provide an **email** address, you will also receive an email notification once the process completes.
 
 <div align="center" style="margin-bottom: 2rem">
   <img src="media/email_example.png" width="660"/>
@@ -60,40 +59,51 @@ If you provide an email address, you will also receive an email notification onc
 
 ## Register your email
 
-The motivation for email notifications is simple: if you are away from your computer (coffee break, let's say),  
-you will still be informed immediately once it completes.
-
 To receive email notifications, you need to register your email address.  
-**No password or login is required**.  
+**No password or login is required** - simply provide your email, verify it, and you will be notified when a process you are watching completes.
 
-Simply provide your email, verify it, and you will be notified when a
-process you are watching completes.
+### Stages:
+1. Press `Ctrl + Shift + P` → `Process Watcher: Email Notifications`.
+2. Paste your email address.
+3. Paste the verification code you received via email.
 
-Press `Ctrl + Shift + P` → `Process Watcher: Email Notifications`
+You will see a small notification confirming in VS-Code that your email has been registered successfully.
 
-A full example of registering your email for notifications:
-
-`**PLACEHOLDER_FOR_GIF**`
 <div align="center"  style="margin-bottom: 2rem">
-  <img src="media/docs/register_email.gif" width="660"/>
+  <img src="media/register_email.gif" width="660"/>
   <br/>
   <sub><i>▶ Example: registering your email for notifications</i></sub>
 </div>
 
+### Unregister your email
+1. Press `Ctrl + Shift + P` → `Process Watcher: Email Notifications`.
+2. `Remove Email Address`.
+
+Or, in every email you get, you can click the  `Stop receiving Process Watcher emails` link to unregister your email.
+
 ## Manifest
 
+* Simplicity.
 * No annoying login.  
-* No ads.  
 * No tracking.  
+* No ads.  
 * Completely free.  
 * An open-source project.  
 
+## Platform Support
+
+- ✅ **Local Windows**.
+- ✅ **Remote SSH to Linux from Windows**.
+
+Other local or remote platform combinations are not currently supported or tested.
+
 ## Contributing / Issues 🤝
 
-Found a bug? Need another feature? PRs are welcome.  
+Found a bug? Need another feature? Issues and PRs are welcome.  
+
 Please include:  
 
--   VS Code version  
+-   VS-Code version  
 -   OS (and remote/WSL if relevant)  
 -   Steps to reproduce the issue  
 -   Screenshots / GIFs if possible  
