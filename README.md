@@ -81,6 +81,12 @@ You will see a small notification confirming in VS-Code that your email has been
 
 Or, in every email you get, you can click the  `Stop receiving Process Watcher emails` link to unregister your email.
 
+### Privacy
+
+Completion emails include the process name, full command line, PID, location, and timestamps. Command lines may contain sensitive arguments, so enable email notifications only when sending that information through the email service is appropriate.
+
+See the [privacy notice](PRIVACY.md) for details about data handling, storage, and security.
+
 ## Manifest
 
 * Simplicity.

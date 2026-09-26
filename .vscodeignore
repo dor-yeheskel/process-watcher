@@ -1,5 +1,6 @@
 .vscode/**
 .vscode-test/**
+DEVELOPMENT.md
 email-relay/**
 out/**
 node_modules/**

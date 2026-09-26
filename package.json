@@ -18,8 +18,11 @@
   ],
   "keywords": [
     "process",
+    "process monitor",
     "notification",
-    "windows"
+    "windows",
+    "remote ssh",
+    "email"
   ],
   "extensionKind": [
     "ui"
