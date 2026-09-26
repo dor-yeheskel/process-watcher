@@ -18,6 +18,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 
 public static class ProcessWatcherWindowActivation
 {
@@ -68,6 +69,16 @@ public static class ProcessWatcherWindowActivation
     [DllImport("user32.dll")]
     public static extern void keybd_event(byte virtualKey, byte scanCode, uint flags, UIntPtr extraInfo);
 
+    public static bool TitleMatches(string title, string titleMarker)
+    {
+        if (String.IsNullOrWhiteSpace(title) || String.IsNullOrWhiteSpace(titleMarker))
+        {
+            return false;
+        }
+        string pattern = @"(^| - )" + Regex.Escape(titleMarker) + @"(?= - | \[|$)";
+        return Regex.IsMatch(title, pattern, RegexOptions.IgnoreCase);
+    }
+
     public static IntPtr FindWindow(string executablePath, string titleMarker)
     {
         if (String.IsNullOrWhiteSpace(executablePath) || String.IsNullOrWhiteSpace(titleMarker))
@@ -92,7 +103,7 @@ public static class ProcessWatcherWindowActivation
 
             StringBuilder title = new StringBuilder(titleLength + 1);
             GetWindowText(windowHandle, title, title.Capacity);
-            if (title.ToString().IndexOf(titleMarker, StringComparison.OrdinalIgnoreCase) < 0)
+            if (!TitleMatches(title.ToString(), titleMarker))
             {
                 return true;
             }

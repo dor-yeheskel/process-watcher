@@ -60,6 +60,8 @@ suite('Process Watcher MVP', () => {
 		assert.match(script, /EnumWindows/);
 		assert.match(script, /GetWindowText/);
 		assert.match(script, /FindWindow/);
+		assert.match(script, /TitleMatches/);
+		assert.match(script, /Regex\.Escape\(titleMarker\)/);
 		assert.doesNotMatch(script, /Get-Process -Name \$codeProcessName/);
 		assert.doesNotMatch(script, /--reuse-window/);
 		assert.match(script, /ShowWindow/);
