@@ -1,0 +1,1655 @@
+Process Watcher for VS Code
+Product and Technical Specification
+====================================
+
+1. Document Purpose
+-------------------
+
+This document defines the product requirements, user experience, architecture, implementation guidelines, edge cases, and MVP scope for a cross-platform Visual Studio Code extension named "Process Watcher" (working title).
+
+The extension solves a simple problem:
+
+A user already has a long-running process on a machine and wants to be notified when that process finishes.
+
+The extension must NOT require the process to have been started by the extension, by a VS Code task, by a VS Code terminal integration, or by any wrapper command.
+
+The user should simply:
+
+1. Open the Process Watcher view in VS Code.
+2. Click "+" / "Add Process".
+3. Search the running processes on the machine where the VS Code workspace is running.
+4. Select the desired process.
+5. The process is immediately added to the watched-process list.
+6. A detached watcher is started for that specific process.
+7. The watcher checks the process periodically.
+8. When the watched process terminates:
+   - The watcher records the completion event.
+   - The watcher exits.
+   - VS Code shows a notification if connected.
+   - The host operating system should also show a notification when possible.
+   - In a future version, an email notification may optionally be sent.
+
+The extension must be intentionally simple.
+
+It does not need to understand:
+- The process output.
+- Logs.
+- Exit codes.
+- Build systems.
+- Python.
+- Gradle.
+- Make.
+- Regression frameworks.
+- Terminal commands.
+- VS Code tasks.
+- Debug sessions.
+
+It only needs to know:
+
+"This exact process existed. Now it no longer exists."
+
+
+2. Problem Statement
+--------------------
+
+Developers frequently run long-running processes such as:
+
+- Builds.
+- Regressions.
+- Simulations.
+- Compilation flows.
+- RTL generation.
+- Validation flows.
+- Data-processing jobs.
+- Test suites.
+- Scripts.
+- Infrastructure jobs.
+- Gradle tasks.
+- Python flows.
+- Remote compute jobs.
+
+The typical workflow today is inefficient:
+
+1. Start a long process.
+2. Work on something else.
+3. Periodically return to the terminal.
+4. Check whether the process is still running.
+5. Repeat every few minutes.
+
+This creates unnecessary context switching.
+
+The user does not necessarily care whether the process succeeded or failed.
+
+The important information is often simply:
+
+"The process finished. I should return to it."
+
+The desired behavior is therefore analogous to a lightweight alarm attached to an arbitrary operating-system process.
+
+
+3. Core Product Principle
+-------------------------
+
+The extension must monitor arbitrary existing OS processes.
+
+The central UX principle is:
+
+"I see a process. I click it. Tell me when it is gone."
+
+The design should avoid requiring the user to:
+
+- Modify the original command.
+- Wrap the original command.
+- Use a special terminal command.
+- Start the process through VS Code.
+- Add shell hooks.
+- Modify build scripts.
+- Modify the application being monitored.
+- Configure task definitions.
+- Parse logs.
+- Redirect stdout.
+- Know the process implementation language.
+
+The monitoring mechanism must be external to the watched process.
+
+
+4. Example Use Cases
+--------------------
+
+Example A: Long build
+
+The user starts:
+
+    gradle buildSomething
+
+The build may take 40 minutes.
+
+A few minutes later, the user opens Process Watcher, clicks "+", finds the Gradle process, and clicks it.
+
+The process appears immediately in the WATCHING section.
+
+The user continues working.
+
+When the Gradle process terminates, VS Code displays:
+
+    Process finished
+    gradle buildSomething
+    PID: 482193
+    Runtime while watched: 37m 18s
+
+The watcher process itself exits.
+
+
+Example B: Remote SSH regression
+
+The user connects VS Code to a remote Linux machine using Remote SSH.
+
+The user starts a regression from a shell.
+
+The regression may run for several hours.
+
+The user adds the regression process to Process Watcher.
+
+A detached watcher is launched on the remote Linux machine.
+
+Later:
+- VS Code is closed, or
+- The SSH connection is interrupted, or
+- The user's laptop sleeps.
+
+The remote watcher must continue running.
+
+When the regression process finishes, the watcher records a completion event on the remote machine and exits.
+
+When the user reconnects to the same remote machine, the extension sees the recorded event and shows:
+
+    Process finished while disconnected
+    regression.py
+    Finished: 22:47
+    PID: 632189
+
+
+Example C: Multiple processes
+
+The user watches three processes:
+
+    PID 1001   gradle build
+    PID 1002   python regression.py
+    PID 1003   simulation_runner
+
+Each process must have its own independent watcher.
+
+When PID 1002 finishes:
+- Its watcher records completion.
+- Its watcher exits.
+- PID 1001 and PID 1003 remain monitored normally.
+
+
+Example D: Suspended process
+
+The user watches a process that becomes suspended/stopped.
+
+The process should remain in the watched list.
+
+Its status should change visually to a warning/suspended state.
+
+Suggested color semantics:
+
+    Green  = running
+    Yellow = suspended/stopped
+    Gray   = watcher state unknown / temporarily unavailable
+
+Red is not required for active processes because a terminated process should leave the WATCHING section and move to RECENTLY FINISHED.
+
+
+5. Scope
+--------
+
+5.1 MVP Scope
+
+The MVP should include:
+
+- Cross-platform support.
+- Windows.
+- Linux.
+- macOS.
+- Local VS Code workspaces.
+- VS Code Remote SSH workspaces.
+- Process discovery.
+- Searchable process picker.
+- Process list sorted by process start time, newest first.
+- Display PID and process name.
+- Hover/details containing full command line.
+- One-click "Watch".
+- Immediate insertion into watched list after selection.
+- Detached watcher process.
+- Polling every 500 ms by default.
+- PID identity protection using process creation/start time.
+- Persistent state for watched processes.
+- Persistent completion events.
+- Notifications while connected.
+- Deferred notifications after reconnect.
+- Manual "Stop Watching".
+- Basic suspended/stopped-state display where supported.
+- Cleanup of completed watcher processes.
+- Cleanup of stale watcher metadata.
+- No dependency on the original terminal.
+
+
+5.2 Explicitly Out of Scope for MVP
+
+The MVP does NOT need:
+
+- Exit-code detection.
+- Success/failure interpretation.
+- Log parsing.
+- Stdout/stderr capture.
+- Automatic process-tree monitoring.
+- Cloud backend.
+- Account creation.
+- Email.
+- SMS.
+- Slack.
+- Teams.
+- Telegram.
+- Push notifications outside the machine.
+- Automatic watching of every long-running command.
+- Terminal shell integration.
+- VS Code Task integration.
+- Debug-session integration.
+- Jupyter integration.
+
+These may be added later.
+
+
+6. User Experience
+------------------
+
+6.1 Activity Bar
+
+The extension should contribute a dedicated Activity Bar icon.
+
+Working title:
+
+    Process Watcher
+
+
+6.2 Main View
+
+The view should contain at least two logical sections:
+
+    PROCESS WATCHER
+
+    WATCHING
+    --------------------------------
+    [green] coral flow          38m
+            PID 82912
+
+    [green] regression        1h 14m
+            PID 81001
+
+    [yellow] build             12m
+             PID 83921
+
+
+    RECENTLY FINISHED
+    --------------------------------
+    [check] socb flow          22:47
+            PID 70211
+
+    [check] gen_rtl            21:31
+            PID 69982
+
+
+6.3 Add Process
+
+The view title bar should provide a "+" button.
+
+Command:
+
+    Process Watcher: Add Process
+
+When clicked, VS Code QuickPick should appear.
+
+The QuickPick must:
+
+- Enumerate processes on the relevant machine.
+- Show processes owned by the current user by default.
+- Allow text search.
+- Search by:
+  - PID.
+  - Executable/process name.
+  - Command line.
+- Sort processes by process start time descending.
+- Prefer recently started processes at the top.
+
+Suggested entry format:
+
+    482193    python
+    482002    gradle
+    481771    regression.py
+
+The description/details can contain a shortened command line.
+
+The full command line should be available in the detail field or hover.
+
+
+6.4 Selecting a Process
+
+When the user selects a process:
+
+1. Capture the process metadata.
+2. Validate that the process still exists.
+3. Capture a stable identity:
+   - PID.
+   - Process creation/start time.
+4. Spawn a detached watcher.
+5. Persist the watch definition.
+6. Add the process immediately to the WATCHING list.
+7. Refresh the tree view.
+
+The user should not need to press another confirmation button.
+
+
+6.5 Watched Process Item
+
+Each watched process item should expose:
+
+Primary line:
+- Friendly process name or executable name.
+- Runtime.
+
+Secondary line:
+- PID.
+
+Tooltip/hover:
+- PID.
+- PPID if available.
+- Process name.
+- Full command line.
+- Process creation time.
+- Watch start time.
+- Current status.
+- Machine identifier.
+- Watcher identifier.
+- Optional working directory if available and permissions allow.
+
+
+6.6 Watched Process Actions
+
+Context-menu actions:
+
+- Stop Watching.
+- Refresh Status.
+- Copy PID.
+- Copy Command.
+- Open Details.
+- Remove from List, if already finished.
+
+
+6.7 Recently Finished
+
+Completed processes should move from WATCHING to RECENTLY FINISHED.
+
+Suggested fields:
+
+- Process name.
+- PID.
+- Finish timestamp.
+- Watched duration.
+- Whether completion occurred while VS Code was connected or disconnected.
+
+The number of retained recent entries should be configurable or bounded.
+
+Example default:
+
+    20 recent completion entries.
+
+
+7. Architecture
+---------------
+
+7.1 High-Level Architecture
+
+The design should separate:
+
+A. VS Code extension
+B. Detached watcher helper
+
+The VS Code extension is the UI/controller.
+
+The detached watcher is the monitoring mechanism.
+
+Conceptually:
+
+    +---------------------------+
+    |       VS Code Client      |
+    |                           |
+    | Activity Bar / Tree View  |
+    | QuickPick                 |
+    | Notifications             |
+    +-------------+-------------+
+                  |
+                  | start watcher / inspect state
+                  |
+    +-------------v-------------+
+    | Machine hosting workspace |
+    |                           |
+    | Detached Watcher Process  |
+    |                           |
+    | Target PID -> polling     |
+    +-------------+-------------+
+                  |
+                  v
+            Target Process
+
+
+7.2 Important Architectural Rule
+
+The actual process monitoring must NOT depend on:
+
+- The VS Code window remaining open.
+- The integrated terminal remaining open.
+- The Remote SSH connection remaining open.
+- The VS Code remote extension host remaining alive.
+- The terminal process remaining alive.
+
+The watcher must be detached from VS Code after creation.
+
+
+7.3 One Watcher Per Watched Process
+
+For the MVP, use one independent watcher helper per watched process.
+
+Example:
+
+    watcher A -> PID 1001
+    watcher B -> PID 1002
+    watcher C -> PID 1003
+
+Advantages:
+
+- Simple lifecycle.
+- No central daemon required.
+- A watcher naturally terminates when its target terminates.
+- Crashes are isolated.
+- Easy reasoning.
+- Easy cleanup.
+- Easy debugging.
+- No persistent service installation.
+
+A central daemon may be considered later, but is not required.
+
+
+8. Watcher Behavior
+-------------------
+
+8.1 Input
+
+Each watcher receives at minimum:
+
+- target PID.
+- expected process creation/start time.
+- unique watch ID.
+- polling interval.
+- path to persistent state directory.
+
+
+8.2 Polling
+
+Default interval:
+
+    500 ms
+
+The polling interval should be configurable.
+
+The watcher should only inspect its target PID.
+
+It should NOT repeatedly scan the complete process table.
+
+Pseudo behavior:
+
+    read target PID
+    read expected creation time
+
+    loop:
+        inspect PID
+
+        if PID does not exist:
+            record completion
+            exit
+
+        if PID exists but creation time differs:
+            treat original process as completed
+            record completion
+            exit
+
+        update state if needed
+
+        sleep(500 ms)
+
+
+8.3 Why Creation Time Is Required
+
+PID alone is insufficient.
+
+Operating systems reuse PIDs.
+
+Example:
+
+1. PID 482193 belongs to process A.
+2. Process A terminates.
+3. Later, process B receives PID 482193.
+
+If the watcher checks only the numeric PID, it may accidentally begin monitoring process B.
+
+Therefore process identity must be:
+
+    PID + process creation/start time
+
+The watcher must detect PID reuse.
+
+
+8.4 Process States
+
+When available, watcher status may include:
+
+- Running.
+- Sleeping.
+- Waiting.
+- Suspended/stopped.
+- Unknown.
+- Terminated.
+
+For UI purposes, simplify these to:
+
+    Running    -> Green
+    Suspended  -> Yellow
+    Unknown    -> Gray
+
+Detailed low-level state may still be available in the tooltip.
+
+
+8.5 Completion
+
+When the target process terminates:
+
+The watcher should atomically persist an event such as:
+
+    watchId
+    pid
+    processName
+    commandLine
+    processCreateTime
+    watchStartTime
+    finishTime
+    completionReason
+
+Possible completionReason values:
+
+    process_exited
+    pid_reused
+    process_unavailable
+    watcher_cancelled
+
+The watcher then exits.
+
+
+9. Persistence
+--------------
+
+9.1 Goals
+
+Persistent state is required because:
+
+- VS Code can close.
+- SSH can disconnect.
+- The local machine can sleep.
+- The remote extension host can restart.
+- The remote machine may remain alive while the client disappears.
+
+The extension must be able to reconstruct its state after reconnect.
+
+
+9.2 Suggested Directory
+
+Use an application-specific directory.
+
+Examples only:
+
+Linux/macOS:
+
+    ~/.process-watcher/
+
+Windows:
+
+    %USERPROFILE%\.process-watcher\
+
+or a platform-native application data directory.
+
+Recommended logical structure:
+
+    process-watcher/
+        watches/
+        events/
+        logs/
+        version.json
+
+
+9.3 Watch Definition
+
+For each active watch, persist metadata such as:
+
+    watchId
+    pid
+    processCreateTime
+    processName
+    commandLine
+    watcherPid
+    createdAt
+    pollInterval
+    state
+
+
+9.4 Completion Event
+
+When a watcher detects completion, it writes a completion event.
+
+Important:
+
+The event must be written before the watcher exits.
+
+Use atomic write behavior where practical:
+
+1. Write to temporary file.
+2. Flush.
+3. Rename to final event filename.
+
+This reduces the chance of partial event files.
+
+
+10. Remote SSH Behavior
+-----------------------
+
+Remote SSH support is a primary requirement.
+
+10.1 Process Location
+
+When VS Code is connected to a remote SSH workspace:
+
+- Process enumeration must occur on the remote machine.
+- The watcher must be created on the remote machine.
+- Watch state must be stored on the remote machine.
+- Completion events must be stored on the remote machine.
+
+The monitored PID refers to a process on the remote machine.
+
+
+10.2 SSH Disconnect
+
+If SSH disconnects:
+
+- The target process continues running.
+- The detached watcher continues running.
+- The watcher continues polling.
+- VS Code cannot receive an immediate notification through the dead SSH connection.
+
+When the process finishes:
+
+- The watcher records the event.
+- The watcher exits.
+
+
+10.3 Reconnect
+
+When VS Code reconnects:
+
+1. Extension reads active watches.
+2. Extension reads unconsumed completion events.
+3. Tree View is reconstructed.
+4. Completion notifications are shown.
+
+Example:
+
+    Process finished while disconnected
+
+    coral_imh
+    PID 482193
+    Finished 17 minutes ago
+
+
+10.4 Event Consumption
+
+Completion events should have a consumed/notified state.
+
+Avoid repeatedly showing the same notification on every reconnect.
+
+Possible approach:
+
+- Event file remains persistent.
+- Extension records notifiedAt.
+
+Alternatively:
+
+- Move events from "pending" to "history".
+
+The implementation should preserve recent history for the RECENTLY FINISHED section.
+
+
+11. Local and OS Notifications
+------------------------------
+
+11.1 VS Code Notification
+
+When connected, use VS Code's native information notification.
+
+Suggested content:
+
+    Process finished: coral_imh
+    PID 482193
+    Runtime: 38m 12s
+
+
+11.2 Operating-System Notification
+
+The extension should attempt to generate an OS-level desktop notification when practical.
+
+Goal:
+
+The user should notice the completion even when another application is currently focused.
+
+The implementation may use:
+- VS Code-supported notification behavior if sufficient.
+- A platform-specific helper if required.
+
+This must remain optional/configurable if platform behavior differs.
+
+
+11.3 Notification Duplication
+
+Avoid excessive duplicate notifications.
+
+A completion should ideally generate:
+
+- One VS Code notification.
+- One OS notification.
+
+The extension should track whether the event has already been notified.
+
+
+12. Cross-Platform Requirements
+-------------------------------
+
+The extension must support:
+
+- Linux.
+- Windows.
+- macOS.
+
+The implementation should isolate OS-specific behavior behind abstractions.
+
+Suggested abstractions:
+
+    ProcessProvider
+    ProcessWatcherLauncher
+    DetachedProcessLauncher
+    NotificationProvider
+    StateStore
+
+
+12.1 Process Discovery
+
+Process enumeration mechanisms may differ by OS.
+
+Do not make the UI layer depend directly on commands such as:
+
+    ps
+    tasklist
+    wmic
+
+Use a process abstraction/library where possible.
+
+The selected implementation must provide, or allow derivation of:
+
+- PID.
+- Process name.
+- Command line.
+- Creation/start time.
+- Status.
+- PPID where available.
+
+
+12.2 Recommended Technology Direction
+
+Prefer a Node.js-native or cross-platform process library that works inside the VS Code extension ecosystem.
+
+If a helper executable/script is used, keep deployment simple.
+
+Avoid requiring the user to manually install Python.
+
+Avoid requiring elevated privileges.
+
+The extension should work after normal installation from the VS Code Marketplace.
+
+
+12.3 Permissions
+
+Some operating systems may restrict access to command lines or details of processes owned by other users.
+
+Default process listing should therefore focus on:
+
+    Processes owned by the current user.
+
+If system-wide listing is possible without elevation, it may be an optional future setting.
+
+The extension must gracefully handle access-denied cases.
+
+
+13. Detached Watcher Requirements
+---------------------------------
+
+13.1 Detachment
+
+The watcher must survive:
+
+- VS Code closing.
+- Terminal closing.
+- Remote SSH disconnect.
+- Remote VS Code extension-host restart.
+
+The watcher must not inherit a lifecycle that causes it to receive termination when the parent VS Code process exits.
+
+
+13.2 Platform-Specific Launch
+
+Platform-specific detachment may be necessary.
+
+Examples conceptually:
+
+Linux/macOS:
+- detached process group/session.
+- no dependency on terminal stdin/stdout.
+- redirected or closed standard streams.
+
+Windows:
+- detached child process / independent process group.
+- no console dependency.
+
+The implementation should hide these details behind a common launcher interface.
+
+
+13.3 Watcher Logging
+
+Watcher logging should be minimal.
+
+Suggested log information:
+
+- Watcher started.
+- Target PID.
+- Identity validation result.
+- Target completed.
+- Event written.
+- Watcher cancelled.
+- Unexpected error.
+
+Logs should be bounded or rotated to avoid uncontrolled growth.
+
+
+14. Process Search and Sorting
+------------------------------
+
+14.1 Sorting
+
+Default sort:
+
+    Process creation/start time descending.
+
+Newest processes should appear first.
+
+This is important because the process the user wants to monitor is commonly one they just started.
+
+
+14.2 Search
+
+Search should match:
+
+- PID.
+- Name.
+- Executable.
+- Command line.
+
+Case-insensitive where appropriate.
+
+
+14.3 Performance
+
+Do not poll the entire process table every 500 ms.
+
+Only enumerate all processes when needed, for example:
+
+- User opens Add Process.
+- User refreshes the process picker.
+
+Once selected, only monitor the selected PID.
+
+
+15. Edge Cases
+--------------
+
+15.1 Process Exits Before Watcher Starts
+
+Scenario:
+
+1. User opens process picker.
+2. Process exists.
+3. User clicks it.
+4. Process exits before watcher fully starts.
+
+Handling:
+
+- Validate identity immediately before watch creation.
+- If already gone:
+  - Inform the user.
+  - Do not create a stale watcher.
+
+
+15.2 PID Reuse
+
+Handled using:
+
+    PID + process creation time
+
+
+15.3 Permission Denied
+
+If process metadata cannot be read:
+
+- Do not crash.
+- Show whatever metadata is available.
+- If stable identity cannot be established, do not watch the process.
+- Show a clear error.
+
+
+15.4 Watcher Crashes
+
+The extension should detect stale active-watch records where:
+
+- Target process is still running.
+- Watcher process is no longer alive.
+
+UI state:
+
+    Gray / Watcher unavailable
+
+Offer:
+
+    Restart Watcher
+
+Automatic recovery may be added later.
+
+
+15.5 Target Process Ends While VS Code Is Closed
+
+Expected behavior:
+
+- Watcher writes event.
+- Watcher exits.
+- Notification shown after next connection.
+
+
+15.6 Remote Host Reboots
+
+Both target process and watcher disappear.
+
+On reconnect:
+
+- Detect that active watch metadata exists but watcher/target are absent.
+- Mark watch as ended/unknown.
+- Record reason such as:
+
+    host_restart_or_state_lost
+
+Do not silently leave it in WATCHING forever.
+
+
+15.7 Local Laptop Sleeps
+
+For remote monitoring:
+
+- Remote watcher continues if remote host remains alive.
+- Notification appears after reconnect.
+
+For local monitoring:
+
+- Both target and watcher may be paused by the operating system.
+- On wake, monitoring resumes.
+- If target ended during a state transition detectable afterward, record completion.
+
+
+15.8 Suspended Process
+
+Do not treat suspended/stopped as finished.
+
+Show Yellow status.
+
+
+15.9 Zombie Process
+
+Platform-specific behavior must be considered.
+
+A zombie has exited execution but may still have a PID until reaped.
+
+The product should define whether "finished" means:
+- process no longer exists, or
+- execution has ended.
+
+For MVP, prefer a practical process-library definition.
+
+Document the chosen behavior.
+
+If the process library exposes zombie state reliably, it may be treated as completed.
+
+
+15.10 Wrapper Processes
+
+Example:
+
+    gradle
+      -> shell
+          -> python
+              -> real workload
+
+In MVP:
+
+Watch exactly the process selected by the user.
+
+If that process exits while a child continues, the watch is considered complete.
+
+This is intentional MVP behavior.
+
+Future feature:
+
+    Watch Process Tree
+
+
+15.11 Duplicate Watch
+
+If the same PID + creation time is already watched:
+
+- Do not create another watcher.
+- Focus/reveal the existing watch entry.
+
+
+15.12 User Stops Watching
+
+Stopping a watch should:
+
+1. Terminate the watcher helper.
+2. Remove active watch metadata.
+3. Leave the target process untouched.
+
+The extension must NEVER terminate the monitored target process.
+
+
+16. Safety Rules
+----------------
+
+The extension is observational.
+
+It must never:
+
+- Kill the target process.
+- Suspend the target process.
+- Resume the target process.
+- Modify its environment.
+- Inject code.
+- Attach a debugger.
+- Change process priority.
+- Alter the original command.
+- Modify process files.
+
+"Stop Watching" means stop monitoring only.
+
+
+17. Settings
+------------
+
+Suggested MVP settings:
+
+    processWatcher.pollIntervalMs
+        default: 500
+
+    processWatcher.showVsCodeNotifications
+        default: true
+
+    processWatcher.showOsNotifications
+        default: true
+
+    processWatcher.recentHistoryLimit
+        default: 20
+
+    processWatcher.showOnlyCurrentUserProcesses
+        default: true
+
+
+Potential future settings:
+
+    processWatcher.email.enabled
+    processWatcher.email.address
+    processWatcher.watchProcessTree
+    processWatcher.autoRemoveFinishedAfterDays
+
+
+18. Commands
+------------
+
+Suggested contributed commands:
+
+    Process Watcher: Add Process
+    Process Watcher: Stop Watching
+    Process Watcher: Refresh
+    Process Watcher: Copy PID
+    Process Watcher: Copy Command
+    Process Watcher: Show Details
+    Process Watcher: Clear Finished History
+    Process Watcher: Restart Watcher
+
+
+19. Internal Data Model
+-----------------------
+
+Suggested WatchRecord:
+
+    id: string
+    pid: number
+    processCreateTime: number/string
+    processName: string
+    commandLine: string
+    ppid?: number
+    processWorkingDirectory?: string
+    machineId?: string
+    watcherPid?: number
+    watchStartedAt: timestamp
+    processStartedAt: timestamp
+    lastKnownStatus: enum
+    state: WATCHING | COMPLETED | CANCELLED | WATCHER_ERROR
+    pollIntervalMs: number
+
+
+Suggested CompletionEvent:
+
+    eventId: string
+    watchId: string
+    pid: number
+    processCreateTime: number/string
+    processName: string
+    commandLine: string
+    watchStartedAt: timestamp
+    finishedAt: timestamp
+    reason: string
+    notificationState:
+        vscodeNotified: boolean
+        osNotified: boolean
+
+
+20. Suggested Extension Structure
+---------------------------------
+
+Example only:
+
+    src/
+      extension.ts
+
+      commands/
+        addProcess.ts
+        stopWatching.ts
+        refresh.ts
+
+      views/
+        processWatcherTreeProvider.ts
+
+      process/
+        processProvider.ts
+        linuxProcessProvider.ts
+        windowsProcessProvider.ts
+        macProcessProvider.ts
+
+      watcher/
+        watcherLauncher.ts
+        watcherProtocol.ts
+        watcherManager.ts
+
+      persistence/
+        stateStore.ts
+        eventStore.ts
+
+      notifications/
+        notificationManager.ts
+
+      models/
+        watchRecord.ts
+        completionEvent.ts
+
+      utils/
+        time.ts
+        logging.ts
+
+
+Watcher helper:
+
+    watcher/
+      watcher implementation
+      platform launcher support
+
+
+21. Startup/Reconnect Reconciliation
+------------------------------------
+
+Every time the extension activates, it should reconcile persisted state.
+
+Recommended algorithm:
+
+1. Load active WatchRecords.
+2. Load pending CompletionEvents.
+3. For each active watch:
+   - Check whether target process still matches PID + creation time.
+   - Check whether watcher helper is alive, if possible.
+4. Classify:
+   - Target alive + watcher alive -> continue.
+   - Target alive + watcher dead -> watcher error.
+   - Target dead + completion event exists -> completed.
+   - Target dead + no completion event -> synthesize/reconcile completion if appropriate.
+5. Load recent completion history.
+6. Refresh Tree View.
+7. Show pending notifications that have not yet been delivered.
+
+
+22. Notification Semantics
+--------------------------
+
+The extension should notify on completion regardless of exit status.
+
+MVP message:
+
+    Process finished
+
+Not:
+
+    Process succeeded
+
+Not:
+
+    Process failed
+
+Because MVP intentionally does not inspect exit status.
+
+Example:
+
+    Process finished: regression.py
+    PID 632189
+    Watched for 1h 14m
+
+
+23. Email - Future Feature
+--------------------------
+
+Email is NOT required for the MVP.
+
+However, architecture should not prevent adding it.
+
+Important constraint:
+
+If the SSH connection is dead, a VS Code extension running locally cannot receive a completion event from the remote watcher through that dead SSH connection.
+
+Therefore reliable immediate remote email requires one of:
+
+A. Remote watcher sends email directly.
+B. Remote watcher sends an HTTPS event to a relay service.
+C. A future cloud notification service delivers the event.
+
+Potential future design:
+
+    Remote watcher
+          |
+          | HTTPS
+          v
+    Notification relay
+       |         |
+       v         v
+     Email    VS Code/local client
+
+
+24. Future Features
+-------------------
+
+Possible future versions:
+
+- Email notifications.
+- Slack/Teams/Telegram.
+- Mobile push notifications.
+- Process-tree monitoring.
+- Watch child processes.
+- Watch a process group.
+- Detect exit code where safely possible.
+- Auto-watch commands longer than N minutes.
+- Terminal integration.
+- Task integration.
+- Debug-session integration.
+- Notification relay service.
+- Shared/team watchers.
+- "Notify when CPU becomes idle."
+- "Notify when process status changes."
+- Named watch aliases.
+- Historical statistics.
+- Watch presets.
+
+
+25. Process Tree Monitoring - Future
+------------------------------------
+
+This is specifically NOT MVP behavior.
+
+Future option:
+
+    Watch Process
+    Watch Process Tree
+
+"Watch Process" means:
+- Finish when selected process terminates.
+
+"Watch Process Tree" means:
+- Track the selected process and relevant descendants.
+- Finish only when all tracked descendants terminate.
+
+Careful design is required because process trees can change dynamically.
+
+
+26. Acceptance Criteria for MVP
+-------------------------------
+
+The MVP is successful if all of the following work:
+
+A. Local Linux
+--------------
+1. Start a long process.
+2. Add it through Process Watcher.
+3. See it in WATCHING.
+4. Process terminates.
+5. Receive notification.
+6. Watcher terminates.
+7. Process appears in RECENTLY FINISHED.
+
+
+B. Windows
+----------
+Same behavior works for a normal current-user process.
+
+
+C. macOS
+--------
+Same behavior works for a normal current-user process.
+
+
+D. Remote SSH
+-------------
+1. Connect to Linux host using VS Code Remote SSH.
+2. Start long process remotely.
+3. Add it to Process Watcher.
+4. Disconnect VS Code/SSH.
+5. Verify remote watcher continues.
+6. Let target process finish.
+7. Reconnect.
+8. Receive "finished while disconnected" notification.
+9. Process appears in RECENTLY FINISHED.
+
+
+E. PID Reuse Protection
+-----------------------
+The watcher must not accidentally continue monitoring an unrelated process that later receives the same PID.
+
+
+F. Stop Watching
+----------------
+Stopping a watch terminates only the watcher and never the target process.
+
+
+G. Multiple Watches
+-------------------
+At least several watched processes can be monitored simultaneously and independently.
+
+
+27. Non-Functional Requirements
+-------------------------------
+
+The extension should be:
+
+- Lightweight.
+- Predictable.
+- Low CPU usage.
+- Low memory usage.
+- Simple to understand.
+- Simple to install.
+- Safe.
+- Cross-platform.
+- Remote-friendly.
+- Resistant to VS Code restarts.
+- Resistant to SSH disconnects.
+
+Polling several selected PIDs every 500 ms should be negligible.
+
+Do not over-engineer the MVP with a general monitoring framework.
+
+
+28. UX Philosophy
+-----------------
+
+The extension should feel like an alarm clock for processes.
+
+The primary interaction should take only a few seconds:
+
+    + -> search -> click -> done
+
+The user should not need to learn a new command.
+
+The extension should avoid exposing infrastructure complexity unless something fails.
+
+
+29. Error Messages
+------------------
+
+Errors should be user-oriented.
+
+Good:
+
+    Could not watch this process because it exited before the watcher started.
+
+Good:
+
+    The process is still running, but its watcher is no longer active.
+    Use "Restart Watcher" to continue monitoring it.
+
+Good:
+
+    Process information could not be read due to operating-system permissions.
+
+Avoid:
+
+    ENOENT
+    ESRCH
+    spawn failed: -1
+
+Raw details may be written to the extension logs.
+
+
+30. Logging and Diagnostics
+---------------------------
+
+Provide an Output Channel:
+
+    Process Watcher
+
+Useful debug information:
+
+- Extension activation.
+- Detected environment.
+- Local vs remote.
+- Process enumeration errors.
+- Watch creation.
+- Watch cancellation.
+- Reconciliation results.
+- Completion event discovery.
+- Watcher launch failures.
+
+Logs should not spam every 500 ms polling iteration.
+
+
+31. Development Priorities
+--------------------------
+
+Priority 1:
+- Correct watcher lifecycle.
+
+Priority 2:
+- Remote SSH survival.
+
+Priority 3:
+- PID reuse correctness.
+
+Priority 4:
+- Simple native VS Code UX.
+
+Priority 5:
+- Cross-platform behavior.
+
+Priority 6:
+- Notifications.
+
+Do not prioritize advanced notification channels before the core watcher is reliable.
+
+
+32. Suggested Implementation Milestones
+---------------------------------------
+
+Milestone 1 - Local Proof of Concept
+------------------------------------
+- Enumerate processes.
+- Select process.
+- Start watcher.
+- Detect termination.
+- VS Code notification.
+
+
+Milestone 2 - Tree View
+-----------------------
+- WATCHING.
+- RECENTLY FINISHED.
+- Process details.
+- Stop Watching.
+
+
+Milestone 3 - Persistence
+-------------------------
+- Persist active watches.
+- Persist completion events.
+- Recover after VS Code restart.
+
+
+Milestone 4 - Remote SSH
+------------------------
+- Launch detached remote watcher.
+- Survive SSH disconnect.
+- Reconcile after reconnect.
+
+
+Milestone 5 - Cross-Platform
+----------------------------
+- Windows.
+- Linux.
+- macOS.
+- Platform-specific process behavior.
+
+
+Milestone 6 - Polish
+--------------------
+- OS notifications.
+- Settings.
+- Error handling.
+- History cleanup.
+- Marketplace-ready packaging.
+
+
+33. Important Instruction for Copilot
+-------------------------------------
+
+When implementing this project, do not accidentally redesign it as a command-runner extension.
+
+The extension must monitor arbitrary processes that already exist.
+
+The original process may have been launched:
+
+- Before VS Code started.
+- From another shell.
+- From tmux.
+- From another terminal.
+- From a script.
+- From another application.
+- From an SSH session.
+- Outside VS Code entirely.
+
+The Process Watcher extension should still be able to attach monitoring to it.
+
+The core abstraction is:
+
+    Select existing OS process
+            ->
+    Create detached watcher
+            ->
+    Poll exact PID + creation time
+            ->
+    Persist completion
+            ->
+    Notify
+            ->
+    Watcher exits
+
+
+34. MVP Summary
+---------------
+
+The MVP should provide:
+
+    [Process Watcher]
+          |
+          + Add Process
+          |
+          v
+    Search running processes
+          |
+          v
+    Select PID
+          |
+          v
+    Add immediately to WATCHING
+          |
+          v
+    Spawn independent detached watcher
+          |
+          v
+    Poll every 500 ms
+          |
+          v
+    Process terminates
+          |
+          +-> persist completion event
+          +-> watcher exits
+          |
+          v
+    VS Code / OS notification
+          |
+          v
+    RECENTLY FINISHED
+
+
+The defining product promise is:
+
+"Pick any running process. Process Watcher will tell you when it is done."

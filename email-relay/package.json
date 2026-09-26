@@ -1,0 +1,18 @@
+{
+  "name": "process-watcher-email-relay",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test test/*.test.mjs",
+    "dev": "wrangler dev --config wrangler.production.jsonc",
+    "deploy": "wrangler deploy --config wrangler.production.jsonc",
+    "db:migrate:local": "wrangler d1 migrations apply process-watcher-email --local --config wrangler.production.jsonc",
+    "db:migrate:remote": "wrangler d1 migrations apply process-watcher-email --remote --config wrangler.production.jsonc"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20260925.2",
+    "typescript": "^6.0.3",
+    "wrangler": "4.141.0"
+  }
+}

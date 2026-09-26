@@ -1,0 +1,31 @@
+# Dependencies and generated output
+node_modules/
+out/
+dist/
+.vscode-test/
+*.vsix
+email-relay/.wrangler/
+email-relay/wrangler.production.jsonc
+email-relay/.dev.vars*
+!email-relay/.dev.vars.example
+email-relay/src/*.js
+email-relay/src/*.js.map
+.env
+.env.*
+!.env.example
+coverage/
+*.pem
+*.key
+*.pfx
+
+# Local development artifacts
+*.log
+npm-debug.log*
+.eslintcache
+.DS_Store
+Thumbs.db
+
+# One-off project bootstrap inputs
+request.txt
+vsc-extension-quickstart.md
+todo.txt

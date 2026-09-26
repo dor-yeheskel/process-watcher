@@ -1,0 +1,145 @@
+{
+  "name": "process-watcher",
+  "displayName": "Process Watcher",
+  "description": "Watch local Windows or Remote SSH Linux processes and receive a native Windows popup or optional email when they end.",
+  "version": "0.0.9",
+  "publisher": "dor-yeheskel",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.137.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "process",
+    "notification",
+    "windows"
+  ],
+  "extensionKind": [
+    "ui"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "processWatcher",
+          "title": "Process Watcher",
+          "icon": "media/process-watcher.svg"
+        }
+      ]
+    },
+    "views": {
+      "processWatcher": [
+        {
+          "id": "processWatcher.view",
+          "name": "Processes"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "processWatcher.view.focus",
+        "title": "Focus on Processes View",
+        "category": "Process Watcher"
+      },
+      {
+        "command": "processWatcher.helloWorldWindowsNotification",
+        "title": "Hello World Windows Notification",
+        "category": "Process Watcher"
+      },
+      {
+        "command": "processWatcher.addProcess",
+        "title": "Add Process",
+        "category": "Process Watcher",
+        "icon": "$(add)"
+      },
+      {
+        "command": "processWatcher.configureEmail",
+        "title": "Email Notifications",
+        "category": "Process Watcher"
+      },
+      {
+        "command": "processWatcher.removeProcess",
+        "title": "Remove from List",
+        "category": "Process Watcher",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "processWatcher.clearEndedProcesses",
+        "title": "Clear Ended Processes",
+        "category": "Process Watcher",
+        "icon": "$(clear-all)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "processWatcher.clearEndedProcesses",
+          "when": "view == processWatcher.view",
+          "group": "navigation@1"
+        },
+        {
+          "command": "processWatcher.addProcess",
+          "when": "view == processWatcher.view",
+          "group": "navigation@2"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "processWatcher.view.focus",
+          "when": "false"
+        },
+        {
+          "command": "processWatcher.helloWorldWindowsNotification",
+          "when": "false"
+        },
+        {
+          "command": "processWatcher.removeProcess",
+          "when": "false"
+        },
+        {
+          "command": "processWatcher.clearEndedProcesses",
+          "when": "false"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "processWatcher.removeProcess",
+          "when": "view == processWatcher.view && (viewItem == processWatcher.running || viewItem == processWatcher.ended)",
+          "group": "inline@1"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "npm run check-types && npm run lint && node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "watch:esbuild": "node esbuild.js --watch",
+    "package": "npm run check-types && npm run lint && node esbuild.js --production",
+    "compile-tests": "tsc -p . --outDir out",
+    "pretest": "npm run compile-tests && npm run compile",
+    "check-types": "tsc --noEmit",
+    "vsix": "npm run package && vsce package --allow-missing-repository --skip-license",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "24.x",
+    "@types/vscode": "^1.137.0",
+    "@vscode/test-cli": "^0.0.15",
+    "@vscode/test-electron": "^3.0.0",
+    "@vscode/vsce": "^4.0.0",
+    "esbuild": "^0.28.1",
+    "eslint": "^10.5.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.61.1"
+  },
+  "overrides": {
+    "diff": "^8.0.4",
+    "serialize-javascript": "^7.0.6"
+  }
+}
