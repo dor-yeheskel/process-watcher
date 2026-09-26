@@ -57,6 +57,11 @@ suite('Process Watcher MVP', () => {
 		assert.match(script, /closeButton\.IsMouseOver/);
 		assert.match(script, /MouseLeftButtonUpEvent/);
 		assert.match(script, /TargetWindowMarker/);
+		assert.match(script, /EnumWindows/);
+		assert.match(script, /GetWindowText/);
+		assert.match(script, /FindWindow/);
+		assert.doesNotMatch(script, /Get-Process -Name \$codeProcessName/);
+		assert.doesNotMatch(script, /--reuse-window/);
 		assert.match(script, /ShowWindow/);
 		assert.match(script, /IsIconic/);
 		assert.match(script, /SetForegroundWindow/);

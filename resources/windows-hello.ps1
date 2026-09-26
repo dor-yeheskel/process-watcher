@@ -14,10 +14,30 @@ Add-Type -AssemblyName PresentationCore
 Add-Type -AssemblyName WindowsBase
 Add-Type @'
 using System;
+using System.Diagnostics;
+using System.IO;
 using System.Runtime.InteropServices;
+using System.Text;
 
 public static class ProcessWatcherWindowActivation
 {
+    private delegate bool EnumWindowsCallback(IntPtr windowHandle, IntPtr parameter);
+
+    [DllImport("user32.dll")]
+    private static extern bool EnumWindows(EnumWindowsCallback callback, IntPtr parameter);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsWindowVisible(IntPtr windowHandle);
+
+    [DllImport("user32.dll")]
+    private static extern int GetWindowTextLength(IntPtr windowHandle);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetWindowText(IntPtr windowHandle, StringBuilder text, int count);
+
+    [DllImport("user32.dll", EntryPoint = "GetWindowThreadProcessId")]
+    private static extern uint GetWindowProcessId(IntPtr windowHandle, out uint processId);
+
     [DllImport("user32.dll")]
     public static extern bool ShowWindow(IntPtr windowHandle, int command);
 
@@ -47,6 +67,62 @@ public static class ProcessWatcherWindowActivation
 
     [DllImport("user32.dll")]
     public static extern void keybd_event(byte virtualKey, byte scanCode, uint flags, UIntPtr extraInfo);
+
+    public static IntPtr FindWindow(string executablePath, string titleMarker)
+    {
+        if (String.IsNullOrWhiteSpace(executablePath) || String.IsNullOrWhiteSpace(titleMarker))
+        {
+            return IntPtr.Zero;
+        }
+
+        string expectedPath = Path.GetFullPath(executablePath);
+        IntPtr match = IntPtr.Zero;
+        EnumWindows(delegate(IntPtr windowHandle, IntPtr parameter)
+        {
+            if (!IsWindowVisible(windowHandle))
+            {
+                return true;
+            }
+
+            int titleLength = GetWindowTextLength(windowHandle);
+            if (titleLength == 0)
+            {
+                return true;
+            }
+
+            StringBuilder title = new StringBuilder(titleLength + 1);
+            GetWindowText(windowHandle, title, title.Capacity);
+            if (title.ToString().IndexOf(titleMarker, StringComparison.OrdinalIgnoreCase) < 0)
+            {
+                return true;
+            }
+
+            uint processId;
+            GetWindowProcessId(windowHandle, out processId);
+            try
+            {
+                Process process = Process.GetProcessById((int)processId);
+                try
+                {
+                    if (String.Equals(Path.GetFullPath(process.MainModule.FileName), expectedPath,
+                        StringComparison.OrdinalIgnoreCase))
+                    {
+                        match = windowHandle;
+                        return false;
+                    }
+                }
+                finally
+                {
+                    process.Dispose();
+                }
+            }
+            catch
+            {
+            }
+            return true;
+        }, IntPtr.Zero);
+        return match;
+    }
 
     public static bool RestoreAndActivate(IntPtr windowHandle)
     {
@@ -255,19 +331,16 @@ $toastClickHandler = [System.Windows.Input.MouseButtonEventHandler]{
     if (-not $script:closing -and -not $script:closeButton.IsMouseOver) {
         $activated = $false
         if ($script:TargetWindowMarker) {
-            $codeProcessName = [System.IO.Path]::GetFileNameWithoutExtension($script:CodePath)
-            $targetProcess = Get-Process -Name $codeProcessName -ErrorAction SilentlyContinue |
-                Where-Object { $_.MainWindowTitle -like "*$($script:TargetWindowMarker)*" } |
-                Select-Object -First 1
-            if ($targetProcess -and $targetProcess.MainWindowHandle -ne [IntPtr]::Zero) {
-                $activated = [ProcessWatcherWindowActivation]::RestoreAndActivate(
-                    $targetProcess.MainWindowHandle
-                )
+            $targetWindow = [ProcessWatcherWindowActivation]::FindWindow(
+                $script:CodePath,
+                $script:TargetWindowMarker
+            )
+            if ($targetWindow -ne [IntPtr]::Zero) {
+                $activated = [ProcessWatcherWindowActivation]::RestoreAndActivate($targetWindow)
             }
         }
         if (-not $activated -and $script:CodePath -and $script:TargetSwitch -and $script:TargetUri) {
             Start-Process -FilePath $script:CodePath -ArgumentList @(
-                '--reuse-window',
                 $script:TargetSwitch,
                 $script:TargetUri
             )
