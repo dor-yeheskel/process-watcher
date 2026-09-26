@@ -4,6 +4,11 @@
   "description": "Watch local Windows or Remote SSH Linux processes and receive a native Windows popup or optional email when they end.",
   "version": "0.0.9",
   "publisher": "dor-yeheskel",
+  "icon": "media/logo.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dor-yeheskel/process-watcher.git"
+  },
   "license": "MIT",
   "engines": {
     "vscode": "^1.137.0"

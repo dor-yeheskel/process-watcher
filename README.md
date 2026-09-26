@@ -1,87 +1,104 @@
-# Process Watcher
+# Process Watcher - get a notification when any process completes
 
-Process Watcher is a VS Code extension that watches an existing local Windows process or a current-user Linux process in a Remote SSH window. When that exact process ends, it opens a persistent native Windows popup and can optionally send a verified email notification.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![open source](https://img.shields.io/badge/open%20source-yes-brightgreen.svg)](https://github.com/dor-yeheskel/process-watcher)
 
-Process identity includes both the PID and creation time, so PID reuse does not complete the wrong watch. Detached monitors continue independently from the terminal that launched the process, and ended watches remain visible until removed or cleared.
+A tiny tool whose purpose is simple: let you know when any process has finished, in 2 clicks.
 
-## Requirements
+`**PLACEHOLDER_FOR_GIF**`
+<div align="center"  style="margin-bottom: 2rem">
+  <img src="media/docs/demo.gif" width="660"/>
+  <br/>
+  <sub><i>▶ Example: get a notification for a finished process</i></sub>
+</div>
 
-- Windows as the local VS Code UI host
-- VS Code 1.137 or newer
-- Optional: a Remote SSH connection to a Linux host for remote process monitoring
+---
 
-Process discovery is limited to the current Windows session or current remote Linux user. Native popups are Windows-only.
+> **TL;DR**  
+> ✅ `Ctrl + Shift + P` → `Process Watcher: Add Process`  
+> ✅ A notification will appear immediately when it completes, with an optional email notification as well.  
+> ✅ That's it!  
 
-## Install
+---
 
-Install a packaged VSIX from VS Code with **Extensions: Install from VSIX**, then reload the window.
+## Sometimes, a notification is all you need
 
-To build a VSIX from source:
+When a long process completes, instead of manually checking its progress constantly, 
+a small Windows notification - and optionally an email - will keep you informed immediately.
 
-```powershell
-npm install
-npm run vsix
-```
+Imagine running a process that you know takes 30 minutes. You do something else meanwhile,  
+then come back and find out that the process completed after just 1 minute...  because of a stupid failure.  
 
-## Watch A Process
+If you were informed immediately, you could take action right away instead of discovering  
+the failure much later. Well, as long as the notification is not annoying or spammy, and you
+choose which process to follow.
 
-1. Open **Process Watcher** from the Activity Bar.
-2. Select **+**, search by process name, PID, or command line, and choose a process.
-3. Running watches appear in green. Ended watches remain in gray.
-4. Hover over a watch to see its command line, PID, location, and timestamps.
-5. Remove one watch from its context menu, or use the view's clear action to remove all ended watches.
+Doing this for **any process** you choose on your machine - this is the pain that **Process Watcher** solves.
 
-Processes are ordered newest-first, with PID as a deterministic tie-breaker. A persistent popup appears when a watched process ends. Clicking it attempts to reactivate the originating VS Code window.
 
-## Email Notifications
+## Usage
 
-1. Run `Process Watcher: Email Notifications` from the Command Palette.
-2. Review the command-line privacy warning and continue.
-3. Enter your email address.
-4. Enter the six-digit verification code sent to that address.
+You choose a process, any process - yours, someone else's, a Python script, a Copilot process, anything.
 
-Run the command again to change or remove the address. Every completion email also contains a confirmed unsubscribe link. Removing or unsubscribing suppresses the recipient across existing installation tokens until the address is explicitly verified again.
+`**PLACEHOLDER_FOR_GIF**`
+<div align="center"  style="margin-bottom: 2rem">
+  <img src="media/docs/choose_process.gif" width="660"/>
+  <br/>
+  <sub><i>▶ Example: choosing a process to watch</i></sub>
+</div>
 
-Email delivery is independent from popup delivery and watch persistence. A relay outage does not prevent the watch from completing locally.
+The process will be monitored by a simple tracker in the background that
+will do the "manual checking" for you. You will be notified immediately once it completes by a small window notification that will remain there until you close it.
 
-## Privacy And Security
+If you provide an email address, you will also receive an email notification once the process completes.
 
-The verified address and signed installation token are stored in VS Code SecretStorage. Resend and signing credentials exist only as Cloudflare Worker secrets and are never included in the extension or repository.
+<div align="center" style="margin-bottom: 2rem">
+  <img src="media/email_example.png" width="660"/>
+  <br/>
+  <sub><i>▶ Example: email notification for a finished process</i></sub>
+</div>
 
-Completion emails contain the process name, full command line, PID, location, and timestamps. Command lines can contain passwords, API keys, tokens, file paths, or other sensitive arguments. Enable email only when sending that data through Cloudflare, Resend, and your email provider is appropriate.
+## Register your email
 
-The relay uses expiring verification codes, atomic attempt limits, HMAC-derived database identifiers, signed recipient-bound tokens, suppression records, streamed body limits, and per-caller/global quotas. Process details and provider response bodies are not intentionally logged server-side.
+The motivation for email notifications is simple: if you are away from your computer (coffee break, let's say),  
+you will still be informed immediately once it completes.
 
-See the [privacy notice](https://github.com/dor-yeheskel/process-watcher/blob/master/PRIVACY.md) and [relay documentation](https://github.com/dor-yeheskel/process-watcher/blob/master/email-relay/README.md) for details.
+To receive email notifications, you need to register your email address.  
+**No password or login is required**.  
 
-## Remote SSH
+Simply provide your email, verify it, and you will be notified when a
+process you are watching completes.
 
-The extension is UI-hosted, so popup and email orchestration run on local Windows. In a Remote SSH window, a hidden terminal uses the existing connection to enumerate current-user Linux processes and launch an owner-only detached monitor.
+Press `Ctrl + Shift + P` → `Process Watcher: Email Notifications`
 
-Remote completion files are written under `/tmp` with owner-only permissions and discovered when the VS Code window reconnects.
+A full example of registering your email for notifications:
 
-## Development
+`**PLACEHOLDER_FOR_GIF**`
+<div align="center"  style="margin-bottom: 2rem">
+  <img src="media/docs/register_email.gif" width="660"/>
+  <br/>
+  <sub><i>▶ Example: registering your email for notifications</i></sub>
+</div>
 
-```powershell
-npm install
-npm run compile
-npm run compile-tests
-npm test
-```
+## Manifest
 
-The email relay is a separate Cloudflare Worker project:
+* No annoying login.  
+* No ads.  
+* No tracking.  
+* Completely free.  
+* An open-source project.  
 
-```powershell
-npm install --prefix email-relay
-npm run --prefix email-relay check
-npm run --prefix email-relay test
-```
+## Contributing / Issues 🤝
 
-Production Wrangler configuration, Worker secrets, local D1 state, dependencies, build output, and VSIX packages are ignored by Git. The committed `email-relay/wrangler.example.jsonc` contains placeholders only.
+Found a bug? Need another feature? PRs are welcome.  
+Please include:  
 
-## Current Limitations
+-   VS Code version  
+-   OS (and remote/WSL if relevant)  
+-   Steps to reproduce the issue  
+-   Screenshots / GIFs if possible  
 
-- No macOS or Linux-native popup implementation
-- No VS Code completion notification
-- No separate running and finished sections
-- Remote Linux monitoring requires the existing Remote SSH session for setup and completion discovery
+## License 📄
+
+This project is licensed under the MIT License.  
+See [LICENSE](LICENSE) for details.  
