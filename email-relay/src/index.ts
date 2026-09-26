@@ -195,7 +195,6 @@ async function sendNotification(request: Request, env: Env): Promise<Response> {
 
 export function completionEmailPresentation(message: EmailMessage, runtime: string, unsubscribeUrl: string) {
 	const details = [
-		['Status', 'Ended'],
 		['Process started', formatDate(message.processStartedAt)],
 		['Watch started', formatDate(message.watchStartedAt)],
 		['Ended', formatDate(message.endedAt)],

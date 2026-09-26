@@ -245,7 +245,8 @@ test('notify sends only to the address in the signed token', async () => {
 	assert.equal(resendBody.subject, 'Process Watcher: build.exe finished');
 	assert.doesNotMatch(resendRequest.init.body, /attacker@example\.com/);
 	assert.match(resendBody.text, /^PROCESS WATCHER\n\nbuild\.exe finished\nPID: 4242\nLocation: Local Windows/);
-	assert.match(resendBody.text, /\nCommand line:\nbuild\.exe --release\n\nStatus: Ended/);
+	assert.match(resendBody.text, /\nCommand line:\nbuild\.exe --release\n\nProcess started:/);
+	assert.doesNotMatch(resendBody.text, /^Status:/m);
 	for (const field of ['Process started:', 'Watch started:', 'Ended:', 'Runtime while watched:']) {
 		assert.match(resendBody.text, new RegExp(field));
 	}
@@ -255,7 +256,8 @@ test('notify sends only to the address in the signed token', async () => {
 	assert.match(resendBody.html, /background:#FFFFFF/);
 	assert.ok(resendBody.html.indexOf('build.exe finished') < resendBody.html.indexOf('PID 4242'));
 	assert.ok(resendBody.html.indexOf('PID 4242') < resendBody.html.indexOf('Command line'));
-	for (const value of ['Local Windows', 'build.exe --release', 'Status', 'Process started', 'Watch started', 'Ended', 'Runtime while watched']) {
+	assert.doesNotMatch(resendBody.html, />Status</);
+	for (const value of ['Local Windows', 'build.exe --release', 'Process started', 'Watch started', 'Ended', 'Runtime while watched']) {
 		assert.match(resendBody.html, new RegExp(value));
 	}
 	assert.deepEqual(resendBody.attachments.map(attachment => ({
