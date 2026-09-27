@@ -76,6 +76,18 @@ async function responseJson(response) {
 	return JSON.parse(await response.text());
 }
 
+test('root identifies the public service and its owner', async () => {
+	const response = await worker.fetch(new Request('https://relay.example/'), env());
+	const body = await response.text();
+
+	assert.equal(response.status, 200);
+	assert.match(response.headers.get('content-type'), /^text\/html/);
+	assert.match(body, /<h1>Process Watcher<\/h1>/);
+	assert.match(body, /marketplace\.visualstudio\.com\/items\?itemName=dor-yeheskel\.process-watcher/);
+	assert.match(body, /github\.com\/dor-yeheskel\/process-watcher\/blob\/master\/PRIVACY\.md/);
+	assert.match(body, /href="\/health"/);
+});
+
 test('health endpoint is available without bindings', async () => {
 	const response = await worker.fetch(new Request('https://relay.example/health'), env());
 

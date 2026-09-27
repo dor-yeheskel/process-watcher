@@ -54,6 +54,9 @@ export default {
 	async fetch(request: Request, env: Env): Promise<Response> {
 		try {
 			const url = new URL(request.url);
+			if (request.method === 'GET' && url.pathname === '/') {
+				return servicePage();
+			}
 			if (request.method === 'GET' && url.pathname === '/health') {
 				return json({ ok: true });
 			}
@@ -520,6 +523,42 @@ function decodeBase64UrlBytes(value: string): Uint8Array {
 
 function json(value: unknown, status = 200): Response {
 	return new Response(JSON.stringify(value), { status, headers: jsonHeaders });
+}
+
+function servicePage(): Response {
+	return new Response(`<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<meta name="description" content="Process Watcher email notification service for the open-source VS Code extension.">
+	<title>Process Watcher Email Service</title>
+	<style>
+		:root { color-scheme: light; font-family: "Segoe UI", Arial, sans-serif; color: #20252b; background: #f2f5f7; }
+		body { margin: 0; }
+		main { max-width: 720px; margin: 0 auto; padding: 72px 24px; }
+		h1 { margin: 0 0 16px; font-size: 40px; line-height: 1.15; letter-spacing: 0; }
+		p { max-width: 620px; margin: 0 0 18px; color: #52606b; font-size: 18px; line-height: 1.6; }
+		nav { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 32px; }
+		a { color: #176f9c; font-weight: 600; }
+		footer { margin-top: 56px; color: #71808c; font-size: 14px; }
+	</style>
+</head>
+<body>
+	<main>
+		<h1>Process Watcher</h1>
+		<p>This domain operates the email notification service for Process Watcher, an open-source Visual Studio Code extension.</p>
+		<p>The service sends opt-in verification codes and process-completion emails. It does not distribute software or host user-generated content.</p>
+		<nav aria-label="Service links">
+			<a href="https://marketplace.visualstudio.com/items?itemName=dor-yeheskel.process-watcher">Visual Studio Marketplace</a>
+			<a href="https://github.com/dor-yeheskel/process-watcher">Source code</a>
+			<a href="https://github.com/dor-yeheskel/process-watcher/blob/master/PRIVACY.md">Privacy policy</a>
+			<a href="/health">Service health</a>
+		</nav>
+		<footer>Operated solely for the Process Watcher extension.</footer>
+	</main>
+</body>
+</html>`, { headers: htmlHeaders });
 }
 
 function htmlPage(title: string, message: string, status = 200): Response {
