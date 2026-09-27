@@ -1,5 +1,10 @@
 # Change Log
 
+## 0.0.10
+
+- Explain when a corporate proxy or security filter replaces an email-service response with HTML.
+- Shorten the Marketplace summary while retaining local Windows, Remote SSH Linux, popup, and email support.
+
 ## 0.0.9
 
 - Add a compact, responsive completion-email design using the Process Watcher clock mark, with a matching plain-text fallback.

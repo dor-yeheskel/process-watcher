@@ -2,7 +2,7 @@ import * as assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import { completionEmailPayload } from '../emailNotifications';
+import { completionEmailPayload, parseRelayResponse } from '../emailNotifications';
 import { WatchedProcess } from '../models';
 import { retainAfterClearingEnded } from '../extension';
 import { parseRemoteProcessOutput, sortProcessesNewestFirst } from '../processBridge';
@@ -171,6 +171,26 @@ suite('Process Watcher MVP', () => {
 			endedAt,
 			commandLine: 'test process',
 		});
+	});
+
+	test('explains when a network filter replaces the relay response with HTML', async () => {
+		await assert.rejects(
+			parseRelayResponse(new Response('<!DOCTYPE html><title>Access denied</title>', {
+				status: 403,
+				headers: { 'content-type': 'text/html; charset=utf-8' },
+			})),
+			/email service returned an HTML page \(HTTP 403\).*network proxy or security filter.*relay\.processwatcher\.dev/i,
+		);
+	});
+
+	test('preserves JSON errors returned by the relay', async () => {
+		await assert.rejects(
+			parseRelayResponse(new Response('{"error":"Too many verification requests."}', {
+				status: 429,
+				headers: { 'content-type': 'application/json' },
+			})),
+			/Too many verification requests\./,
+		);
 	});
 });
 

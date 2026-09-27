@@ -155,11 +155,7 @@ export class EmailNotifications {
 				body: JSON.stringify(body),
 				signal: controller.signal,
 			});
-			const result = await response.json() as T;
-			if (!response.ok) {
-				throw new RelayRequestError(response.status, result.error ?? 'Email service request failed.');
-			}
-			return result;
+			return await parseRelayResponse<T>(response);
 		} finally {
 			clearTimeout(timeout);
 		}
@@ -187,6 +183,31 @@ export function completionEmailPayload(watch: WatchedProcess) {
 
 function isValidEmail(value: string): boolean {
 	return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()) && value.trim().length <= 254;
+}
+
+export async function parseRelayResponse<T extends RelayError = RelayError>(response: Response): Promise<T> {
+	const contentType = response.headers.get('content-type')?.toLowerCase() ?? '';
+	const body = await response.text();
+	if (contentType.includes('text/html') || /^\s*(?:<!doctype html|<html\b)/i.test(body)) {
+		throw new RelayRequestError(
+			response.status,
+			`Email service returned an HTML page (HTTP ${response.status}). A network proxy or security filter may be blocking relay.processwatcher.dev.`,
+		);
+	}
+	let result: unknown;
+	try {
+		result = JSON.parse(body);
+	} catch {
+		throw new RelayRequestError(response.status, `Email service returned an invalid response (HTTP ${response.status}).`);
+	}
+	if (typeof result !== 'object' || result === null || Array.isArray(result)) {
+		throw new RelayRequestError(response.status, `Email service returned an invalid response (HTTP ${response.status}).`);
+	}
+	const relayResult = result as T;
+	if (!response.ok) {
+		throw new RelayRequestError(response.status, relayResult.error ?? 'Email service request failed.');
+	}
+	return relayResult;
 }
 
 class RelayRequestError extends Error {
