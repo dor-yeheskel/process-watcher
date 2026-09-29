@@ -87,6 +87,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 				treeProvider.refreshAll();
 				setTreeMessage();
 				log(`Watching ${watch.name} (PID ${watch.pid}) on ${watch.location}.`);
+				void vscode.window.showInformationMessage(watchStartedMessage(watch));
 			} catch (error) {
 				const message = errorMessage(error);
 				setTreeMessage(message);
@@ -198,6 +199,10 @@ export function retainAfterClearingEnded(
 	workspaceKey: string,
 ): WatchedProcess[] {
 	return watches.filter(watch => watch.workspaceKey !== workspaceKey || watch.status !== 'ended');
+}
+
+export function watchStartedMessage(watch: Pick<WatchedProcess, 'name' | 'pid'>): string {
+	return `Watching ${watch.name} (PID ${watch.pid}).`;
 }
 
 async function launchWindowsPopup(scriptPath: string, headline: string, detail: string): Promise<void> {

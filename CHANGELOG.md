@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.0.11
+
+- Show a concise VS Code confirmation after a process watch starts successfully.
+
 ## 0.0.10
 
 - Explain when a corporate proxy or security filter replaces an email-service response with HTML.

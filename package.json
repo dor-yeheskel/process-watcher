@@ -2,7 +2,7 @@
   "name": "process-watcher",
   "displayName": "Process Watcher",
   "description": "Get a Windows popup or email when a local or Remote SSH Linux process ends.",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "publisher": "dor-yeheskel",
   "icon": "media/logo.png",
   "repository": {

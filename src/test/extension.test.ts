@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { completionEmailPayload, parseRelayResponse } from '../emailNotifications';
 import { WatchedProcess } from '../models';
-import { retainAfterClearingEnded } from '../extension';
+import { retainAfterClearingEnded, watchStartedMessage } from '../extension';
 import { parseRemoteProcessOutput, sortProcessesNewestFirst } from '../processBridge';
 import { ProcessTreeProvider } from '../processTree';
 
@@ -157,6 +157,13 @@ suite('Process Watcher MVP', () => {
 				.map(item => item.id),
 			['local-running', 'remote-ended'],
 		);
+	});
+
+	test('confirms a newly watched process with a concise notification', async () => {
+		assert.strictEqual(watchStartedMessage({ name: 'python3', pid: 9704 }), 'Watching python3 (PID 9704).');
+		const extensionPath = path.resolve(__dirname, '..', '..', 'src', 'extension.ts');
+		const source = await readFile(extensionPath, 'utf8');
+		assert.match(source, /await persist\(\);[\s\S]*showInformationMessage\(watchStartedMessage\(watch\)\)/);
 	});
 
 	test('builds completion email details from an ended watch', () => {
